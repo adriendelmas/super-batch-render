@@ -10,7 +10,7 @@ from datetime import datetime
 
 import bpy
 
-from .props import SPECS
+from .props import SPECS, STAMP_FIELDS
 
 TEXT_BLOCK = ".super_batch_render.json"
 RNA_PATH = re.compile(r'^(?:(.*)\.)?([A-Za-z_]\w*)(?:\[(\d+)\])?$')
@@ -126,8 +126,13 @@ def parse_value(text):
 
 
 def custom_ops(s, job):
+    """Visibility and custom path operations, global first so the job's entries win."""
     ops = []
-    for c in list(s.custom) + list(job.custom):  # job entries last: they win
+    for v in list(s.visibility) + list(job.visibility):
+        if v.enabled and v.target:
+            coll = "collections" if v.kind == 'COLLECTION' else "objects"
+            ops.append(["data", f'{coll}["{bpy.utils.escape_identifier(v.target)}"].hide_render', v.hide])
+    for c in list(s.custom) + list(job.custom):
         if c.enabled and c.path.strip():
             path = c.path.strip()
             root = "data" if path.startswith("bpy.data.") else "scene"
@@ -154,8 +159,18 @@ def compile_ops(s, job):
         elif key == "file_format":
             ops += [["scene", "render.image_settings.media_type", MEDIA.get(val, 'IMAGE')],
                     ["scene", "render.image_settings.file_format", val]]
+        elif key == "stamp_fields":
+            ops += [["scene", f"render.use_stamp_{f.lower()}", f in val] for f in STAMP_FIELDS]
+        elif key == "stamp_note":
+            ops += [["scene", "render.use_stamp_note", bool(val)], ["scene", "render.stamp_note_text", val]]
+        elif key == "threads":
+            ops.append(["scene", "render.threads_mode", 'FIXED' if val else 'AUTO'])
+            if val:
+                ops.append(["scene", "render.threads", val])
         else:
-            vals = list(val) if len(paths) > 1 and hasattr(val, "__len__") and not isinstance(val, str) else [val] * len(paths)
+            if hasattr(val, "__len__") and not isinstance(val, str):
+                val = tuple(val)  # bpy arrays / Color are not JSON serialisable
+            vals = list(val) if isinstance(val, tuple) and len(paths) > 1 else [val] * len(paths)
             ops += [["scene", p, v] for p, v in zip(paths, vals)]
     return ops + custom_ops(s, job)
 
@@ -293,6 +308,7 @@ def load_from_text():
     text = bpy.data.texts.get(TEXT_BLOCK)
     s.jobs.clear()
     s.custom.clear()
+    s.visibility.clear()
     for key, *_rest in SPECS:
         setattr(s.overrides, "use_" + key, False)
     if text:

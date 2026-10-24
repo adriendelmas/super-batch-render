@@ -16,7 +16,7 @@ class SBR_UL_jobs(bpy.types.UIList):
         sub.active = job.enabled
         sub.prop(job, "name", text="", emboss=False, icon=STATUS_ICON[job.status])
         sub.label(text=job.scene.name if job.scene else "no scene")
-        n = sum(getattr(job.overrides, "use_" + k) for k, *_ in SPECS) + sum(c.enabled for c in job.custom)
+        n = sum(getattr(job.overrides, "use_" + k) for k, *_ in SPECS) + sum(c.enabled for c in job.custom) + sum(v.enabled for v in job.visibility)
         if n:
             sub.label(text=f"{n} ovr", icon='MODIFIER')
         if job.total:
@@ -118,6 +118,8 @@ def draw_overrides(layout, ov, prefix, scene=None, fallback=None):
                 sub.prop_search(ov, key, bpy.data, "worlds")
             elif key == "view_layer" and scene:
                 sub.prop_search(ov, key, scene, "view_layers")
+            elif key == "stamp_fields":
+                sub.grid_flow(columns=3, align=True).prop(ov, key)
             else:
                 sub.prop(ov, key)
             if fallback and not getattr(ov, "use_" + key) and getattr(fallback, "use_" + key):
@@ -135,9 +137,27 @@ def draw_custom(layout, owner, target):
         row.prop(c, "path", text="")
         row.prop(c, "value", text="")
         op = row.operator("sbr.custom", text="", icon='X')
-        op.target, op.index = target, i
+        op.target, op.list, op.index = target, 'custom', i
     op = body.operator("sbr.custom", text="Add Path", icon='ADD')
-    op.target, op.index = target, -1
+    op.target, op.list, op.index = target, 'custom', -1
+
+
+def draw_visibility(layout, owner, target):
+    header, body = layout.panel(f"sbr_vis_{target}", default_closed=not owner.visibility)
+    header.label(text=f"Collections & Objects  ({len(owner.visibility)})" if owner.visibility else "Collections & Objects")
+    if not body:
+        return
+    for i, v in enumerate(owner.visibility):
+        row = body.row(align=True)
+        row.prop(v, "enabled", text="")
+        row.prop(v, "kind", text="", icon_only=True)
+        row.prop_search(v, "target", bpy.data, "collections" if v.kind == 'COLLECTION' else "objects", text="")
+        row.prop(v, "hide", text="Hide" if v.hide else "Show", toggle=True,
+                 icon='HIDE_ON' if v.hide else 'HIDE_OFF')
+        op = row.operator("sbr.custom", text="", icon='X')
+        op.target, op.list, op.index = target, 'visibility', i
+    op = body.operator("sbr.custom", text="Add Collection / Object", icon='ADD')
+    op.target, op.list, op.index = target, 'visibility', -1
 
 
 class SBR_PT_output(OutputPanel, bpy.types.Panel):
@@ -163,6 +183,7 @@ class SBR_PT_global(OutputPanel, bpy.types.Panel):
         s = context.window_manager.sbr
         self.layout.label(text="Applied to every job, a job override wins", icon='WORLD')
         draw_overrides(self.layout, s.overrides, "global")
+        draw_visibility(self.layout, s, 'GLOBAL')
         draw_custom(self.layout, s, 'GLOBAL')
 
 
@@ -199,6 +220,7 @@ class SBR_PT_job(OutputPanel, bpy.types.Panel):
         if job.error:
             layout.label(text=job.error, icon='ERROR')
         draw_overrides(layout, job.overrides, "job", job.scene, s.overrides)
+        draw_visibility(layout, job, 'JOB')
         draw_custom(layout, job, 'JOB')
 
 

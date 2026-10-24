@@ -122,20 +122,21 @@ class SBR_OT_job_action(bpy.types.Operator):
 
 
 class SBR_OT_custom(bpy.types.Operator):
-    """Add or remove a custom RNA path override"""
+    """Add or remove a custom RNA path or visibility override"""
     bl_idname = "sbr.custom"
     bl_label = "Custom Override"
     bl_options = {'UNDO'}
     target: EnumProperty(items=[('GLOBAL', "Global", ""), ('JOB', "Job", "")])
+    list: EnumProperty(items=[('custom', "Custom", ""), ('visibility', "Visibility", "")])
     index: IntProperty(default=-1)
 
     def execute(self, context):
         s = context.window_manager.sbr
-        owner = s if self.target == 'GLOBAL' else s.jobs[s.active]
+        items = getattr(s if self.target == 'GLOBAL' else s.jobs[s.active], self.list)
         if self.index < 0:
-            owner.custom.add()
+            items.add()
         else:
-            owner.custom.remove(self.index)
+            items.remove(self.index)
         return {'FINISHED'}
 
 
@@ -153,7 +154,7 @@ class SBR_OT_copy_overrides(bpy.types.Operator):
         for job in s.jobs:
             if job != src:
                 core.from_dict(job.overrides, data["overrides"])
-                core.from_dict(job, {"custom": data["custom"]})
+                core.from_dict(job, {"custom": data["custom"], "visibility": data["visibility"]})
         return {'FINISHED'}
 
 
@@ -185,6 +186,7 @@ class SBR_OT_import(bpy.types.Operator, ImportHelper):
             data = json.load(f)
         s.jobs.clear()
         s.custom.clear()
+        s.visibility.clear()
         core.from_dict(s, data)
         return {'FINISHED'}
 

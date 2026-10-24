@@ -25,10 +25,17 @@ Blender then offers each new version as an update.
   `{version}` takes the first unused `v001`, `v002`... so a re-render never overwrites.
   The resolved path of the active job is shown live under the job.
 - **Global overrides** applied to every job; a job override wins over the global one.
-- **About 30 typed overrides**: engine, device, samples, noise threshold, denoise, bounces, time limit,
-  motion blur, simplify, persistent data, camera, world, view layer, transparent film, compositing,
-  frame range, step, resolution X/Y, scale %, fps, format (incl. EXR multilayer and video), color mode,
-  depth, EXR codec, quality, overwrite, placeholders, view transform, look, exposure, gamma.
+- **About 140 typed overrides**, grouped like Blender's panels: Engine (device, CPU threads, tiling,
+  persistent data), Sampling (adaptive, noise threshold, denoiser, seed, light tree), Light Paths (every
+  bounce type, clamps, caustics), Cycles Advanced (path guiding, fast GI, volumes, dicing, culling, pixel
+  filter, denoiser options, scrambling), EEVEE and EEVEE Advanced (ray tracing, shadows, GI, horizon scan,
+  clamps, volumetrics, bokeh, overscan), Workbench (AA, lighting, color, cavity, shadows), Motion Blur &
+  Simplify, Scene (camera, world, view layer, film, compositing, freestyle), Metadata (burn-in, fields,
+  note), Frames & Size (range, step, resolution, fps, render region), Output & Misc (pixel aspect, dither,
+  hair, compositor device, sequencer, single layer, stereo), File (format incl. EXR multilayer and video,
+  depth, codec, overwrite, placeholders), Color (view transform, look, exposure, gamma, white balance).
+- **Collections & objects per job**: hide or force-show collections and objects in the render,
+  globally or per job.
 - **Custom RNA path overrides** for anything else: `cycles.max_bounces = 4`,
   `bpy.data.objects["Tree"].hide_render = True`. Paths are checked before the render starts.
 - **Every override is undone after each job**, so two jobs on the same scene don't leak settings
