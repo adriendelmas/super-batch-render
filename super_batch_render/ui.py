@@ -64,6 +64,10 @@ class SBR_PT_main(OutputPanel, bpy.types.Panel):
         col.separator()
         col.menu("SBR_MT_queue", text="", icon='DOWNARROW_HLT')
 
+        row = layout.row(align=True)
+        row.operator("sbr.add_job", text="Add Current Scene", icon='SCENE_DATA').what = 'CURRENT'
+        row.operator("sbr.add_job", text="Add All Scenes", icon='DOCUMENTS').what = 'ALL'
+
 
 class SBR_MT_queue(bpy.types.Menu):
     bl_label = "Queue"

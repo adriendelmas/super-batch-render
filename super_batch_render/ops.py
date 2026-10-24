@@ -44,7 +44,8 @@ class SBR_OT_add_job(bpy.types.Operator):
     bl_idname = "sbr.add_job"
     bl_label = "Add Job"
     bl_options = {'UNDO'}
-    what: EnumProperty(items=[('CURRENT', "Current Scene", ""), ('ALL', "All Scenes", ""),
+    what: EnumProperty(items=[('CURRENT', "Current Scene", ""),
+                              ('ALL', "All Scenes", "Every scene with a camera that is not queued yet"),
                               ('CAMERAS', "One Job per Camera", "Every camera of the current scene, camera overridden"),
                               ('MARKERS', "One Job per Camera Marker", "Each timeline marker bound to a camera renders its own range")])
     poll = classmethod(_idle)
@@ -61,8 +62,14 @@ class SBR_OT_add_job(bpy.types.Operator):
         if self.what == 'CURRENT':
             add(sc, sc.name)
         elif self.what == 'ALL':
-            for scene in bpy.data.scenes:
+            queued = {j.scene for j in s.jobs}
+            new = [scene for scene in bpy.data.scenes if scene.camera and scene not in queued]
+            for scene in new:
                 add(scene, scene.name)
+            if not new:
+                self.report({'WARNING'}, "No new scene with a camera")
+                return {'CANCELLED'}
+            self.report({'INFO'}, f"Added {len(new)} scenes")
         elif self.what == 'CAMERAS':
             for cam in sorted((o for o in sc.objects if o.type == 'CAMERA'), key=lambda o: o.name):
                 job = add(sc, f"{sc.name}_{cam.name}")
