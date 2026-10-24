@@ -1,0 +1,18 @@
+schema_version = "1.0.0"
+
+id = "super_batch_render"
+version = "0.1.0"
+name = "Super Batch Render"
+tagline = "Render queue with naming templates, global and custom overrides"
+maintainer = "Adrien Delmas"
+type = "add-on"
+# Derived from RenderCue (https://github.com/usamasq/RenderCue), so GPL-3.0 as well
+license = ["SPDX:GPL-3.0-or-later"]
+copyright = ["2025 Usama Bin Shahid (RenderCue)", "2026 Adrien Delmas"]
+website = "https://github.com/adriendelmas/super-batch-render"
+tags = ["Render", "Pipeline"]
+
+blender_version_min = "4.2.0"
+
+[permissions]
+files = "Write renders and a temporary snapshot of the .blend next to it"

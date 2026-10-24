@@ -1,0 +1,34 @@
+{
+  "version": "v1",
+  "blocklist": [],
+  "data": [
+    {
+      "schema_version": "1.0.0",
+      "id": "super_batch_render",
+      "name": "Super Batch Render",
+      "tagline": "Render queue with naming templates, global and custom overrides",
+      "version": "0.1.0",
+      "type": "add-on",
+      "maintainer": "Adrien Delmas",
+      "license": [
+        "SPDX:GPL-3.0-or-later"
+      ],
+      "blender_version_min": "4.2.0",
+      "website": "https://github.com/adriendelmas/super-batch-render",
+      "copyright": [
+        "2025 Usama Bin Shahid (RenderCue)",
+        "2026 Adrien Delmas"
+      ],
+      "permissions": {
+        "files": "Write renders and a temporary snapshot of the .blend next to it"
+      },
+      "tags": [
+        "Render",
+        "Pipeline"
+      ],
+      "archive_url": "./super_batch_render-0.1.0.zip",
+      "archive_size": 29933,
+      "archive_hash": "sha256:a352d6e98b2f134fd6bacc8840cbb7e3510e89d571eb7becafa06314a475591c"
+    }
+  ]
+}
