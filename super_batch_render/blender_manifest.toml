@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "super_batch_render"
-version = "0.1.0"
+version = "0.1.1"
 name = "Super Batch Render"
 tagline = "Render queue with naming templates, global and custom overrides"
 maintainer = "Adrien Delmas"

@@ -7,7 +7,7 @@
       "id": "super_batch_render",
       "name": "Super Batch Render",
       "tagline": "Render queue with naming templates, global and custom overrides",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "type": "add-on",
       "maintainer": "Adrien Delmas",
       "license": [
@@ -26,9 +26,9 @@
         "Render",
         "Pipeline"
       ],
-      "archive_url": "./super_batch_render-0.1.0.zip",
-      "archive_size": 29933,
-      "archive_hash": "sha256:a352d6e98b2f134fd6bacc8840cbb7e3510e89d571eb7becafa06314a475591c"
+      "archive_url": "./super_batch_render-0.1.1.zip",
+      "archive_size": 29935,
+      "archive_hash": "sha256:ad3c7e11ca6bab1cfd69eff21ab67491206e80acf8de2520d9161e9165289faa"
     }
   ]
 }
