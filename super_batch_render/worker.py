@@ -125,7 +125,19 @@ def run_job(job):
         restore(undo)
 
 
+def use_own_gpu():
+    """Per-GPU worker: enable the one GPU this process sees. The preferences on disk can be older than
+    the session that started the render (devices ticked but not saved), which silently meant CPU rendering."""
+    prefs = bpy.context.preferences.addons["cycles"].preferences
+    prefs.compute_device_type = MANIFEST["compute"]
+    for device in prefs.get_devices_for_type(MANIFEST["compute"]):
+        device.use = device.type != 'CPU'
+        log(f"Device {device.name}: {'on' if device.use else 'off'}")
+
+
 def main():
+    if PARTS > 1 and MANIFEST.get("compute"):
+        use_own_gpu()
     bpy.app.handlers.render_pre.append(on_render_pre)
     bpy.app.handlers.render_post.append(on_render_post)
     for i, job in enumerate(MANIFEST["jobs"]):

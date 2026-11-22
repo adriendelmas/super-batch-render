@@ -287,6 +287,10 @@ class SBR_OT_render(bpy.types.Operator):
             gpus = []
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         procs, logs, statuses = [], [], []
+        if gpus:  # read by the workers, which must not depend on the saved preferences
+            manifest["compute"] = context.preferences.addons["cycles"].preferences.compute_device_type
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=1)
         for part, gpu in enumerate(gpus or [None]):
             cmd = [bpy.app.binary_path, "-b", snapshot, "--python", WORKER, "--", manifest_path]
             env = None
