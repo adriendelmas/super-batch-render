@@ -14,13 +14,42 @@ from bpy_extras.io_utils import ExportHelper, ImportHelper
 from . import core
 
 WORKER = os.path.join(os.path.dirname(__file__), "worker.py")
-_run = {}  # proc, status, manifest, snapshot, start, stopped
+_run = {}  # procs, logs, statuses, status (pause file base), manifest, snapshot, start, stopped
 
 
 def _kill():
-    proc = _run.get("proc")
-    if proc and proc.poll() is None:
-        proc.kill()
+    for proc in _run.get("procs", ()):
+        if proc.poll() is None:
+            proc.kill()
+
+
+def _merged_status():
+    """Status of the run: the single worker status, or the sum of the per-GPU workers. None before the first write."""
+    parts = []
+    for path in _run["statuses"]:
+        try:
+            with open(path, encoding="utf-8") as f:
+                parts.append(json.load(f))
+        except (OSError, ValueError):
+            pass
+    if not parts:
+        return None
+    if len(_run["statuses"]) == 1:
+        return parts[0]
+    waiting = len(parts) < len(_run["statuses"])  # a worker that has not written yet still has its frames to do
+    jobs = []
+    for js in zip(*(p["jobs"] for p in parts)):
+        states = {j["state"] for j in js}
+        jobs.append({
+            "state": 'FAILED' if 'FAILED' in states else states.pop() if len(states) == 1 and not waiting else 'RENDERING',
+            "done": sum(j["done"] for j in js),
+            "error": next((j["error"] for j in js if j["error"]), ""),
+            "start": min((j["start"] for j in js if j["start"]), default=0.0),
+            "end": max(j["end"] for j in js) if all(j["end"] for j in js) and not waiting else 0.0,
+        })
+    busy = next((p for p in parts if not p["finished"]), parts[0])
+    message = busy["message"] if busy["message"] == "Paused" else f"{len(_run['statuses'])} GPUs - {busy['message']}"
+    return {"jobs": jobs, "message": message}
 
 
 atexit.register(_kill)
@@ -251,12 +280,31 @@ class SBR_OT_render(bpy.types.Operator):
         s.total = sum(j["total"] for j in manifest["jobs"])
         s.message, s.log_path = "Starting background Blender...", log_path
 
-        log = open(log_path, "w", encoding="utf-8")
-        cmd = [bpy.app.binary_path, "-b", snapshot, "--python", WORKER, "--", manifest_path, status_path]
+        gpus = core.render_gpus() if s.per_gpu else []
+        if s.per_gpu and len(gpus) < 2:
+            self.report({'WARNING'}, "One Blender per GPU needs 2+ NVIDIA GPUs enabled in the Cycles preferences "
+                                     "(CUDA or OptiX): rendering with a single Blender")
+            gpus = []
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        _run.update(proc=subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, creationflags=flags),
-                    log=log, status=status_path, manifest=manifest, snapshot=snapshot, is_copy=s.use_snapshot,
-                    start=time.time(), stopped=False)
+        procs, logs, statuses = [], [], []
+        for part, gpu in enumerate(gpus or [None]):
+            cmd = [bpy.app.binary_path, "-b", snapshot, "--python", WORKER, "--", manifest_path]
+            env = None
+            if gpu is None:
+                statuses.append(status_path)
+                logs.append(open(log_path, "w", encoding="utf-8"))
+                cmd.append(status_path)
+            else:
+                # the worker only sees its own GPU, which keeps its "enabled" state from the preferences
+                env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu))
+                statuses.append(os.path.join(run_dir, f"status_{part}.json"))
+                logs.append(open(os.path.join(run_dir, f"worker_{part}.log"), "w", encoding="utf-8"))
+                cmd += [statuses[-1], str(part), str(len(gpus)), status_path + ".pause"]
+            if os.path.exists(statuses[-1]):
+                os.remove(statuses[-1])
+            procs.append(subprocess.Popen(cmd, stdout=logs[-1], stderr=subprocess.STDOUT, creationflags=flags, env=env))
+        _run.update(procs=procs, logs=logs, statuses=statuses, status=status_path, manifest=manifest,
+                    snapshot=snapshot, is_copy=s.use_snapshot, start=time.time(), stopped=False)
         bpy.app.timers.register(_poll, first_interval=1.0)
         return {'FINISHED'}
 
@@ -269,12 +317,8 @@ def _jobs_of_run(s):
 
 def _poll():
     s = core.settings()
-    proc, manifest = _run["proc"], _run["manifest"]
-    try:
-        with open(_run["status"], encoding="utf-8") as f:
-            st = json.load(f)
-    except (OSError, ValueError):
-        st = None
+    procs, manifest = _run["procs"], _run["manifest"]
+    st = _merged_status()
     if st:
         states = {mj["queue_index"]: js for mj, js in zip(manifest["jobs"], st["jobs"])}
         for mj, job in _jobs_of_run(s):
@@ -288,14 +332,16 @@ def _poll():
         elapsed = time.time() - _run["start"]
         if s.done:
             s.eta = time.strftime("%H:%M:%S", time.gmtime(elapsed / s.done * (s.total - s.done)))
-    finished = proc.poll() is not None
+    finished = all(p.poll() is not None for p in procs)
     if finished:
-        _run["log"].close()
+        for log in _run["logs"]:
+            log.close()
+        code = next((p.returncode for p in procs if p.returncode), 0)
         for _mj, job in _jobs_of_run(s):
             if job.status in {'PENDING', 'RENDERING'}:
                 job.status = 'CANCELLED' if _run["stopped"] else 'FAILED'
                 if not _run["stopped"]:
-                    job.error = f"Background Blender exited with code {proc.returncode}, see worker.log"
+                    job.error = f"Background Blender exited with code {code}, see worker.log"
         ok = sum(1 for js in st["jobs"] if js["state"] == 'COMPLETED') if st else 0
         s.message = f"Done: {ok}/{len(manifest['jobs'])} jobs in " \
                     f"{time.strftime('%H:%M:%S', time.gmtime(time.time() - _run['start']))}"

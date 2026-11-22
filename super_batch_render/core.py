@@ -241,6 +241,16 @@ def validate(s):
     return issues
 
 
+def render_gpus():
+    """CUDA indices of the GPUs enabled in the Cycles preferences ([] when the backend is not CUDA / OptiX)."""
+    addon = bpy.context.preferences.addons.get("cycles")
+    prefs = addon.preferences if addon else None
+    if prefs is None or prefs.compute_device_type not in {'CUDA', 'OPTIX'}:
+        return []
+    gpus = [d for d in prefs.get_devices_for_type(prefs.compute_device_type) if d.type != 'CPU']
+    return [i for i, d in enumerate(gpus) if d.use]
+
+
 def build_manifest(s):
     jobs = []
     for i, job in enumerate(s.jobs):

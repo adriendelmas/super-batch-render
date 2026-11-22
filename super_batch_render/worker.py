@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Background render worker, run as:
-#   blender -b snapshot.blend --python worker.py -- manifest.json status.json
+#   blender -b snapshot.blend --python worker.py -- manifest.json status.json [part parts pause_file]
+# With `part parts`, this worker is one of `parts` Blenders (one per GPU) and renders every
+# `parts`-th frame starting at the `part`-th: together they cover each frame exactly once.
 # Standalone on purpose (bpy + stdlib only): the main process compiles every
 # override into plain (root, rna_path, value) operations, this script only applies them.
 # Architecture (manifest + status file + pause signal) adapted from RenderCue by Usama Bin Shahid.
@@ -13,8 +15,10 @@ import sys
 import time
 import traceback
 
-MANIFEST_PATH, STATUS_PATH = sys.argv[sys.argv.index("--") + 1:][:2]
-PAUSE_PATH = STATUS_PATH + ".pause"
+ARGS = sys.argv[sys.argv.index("--") + 1:]
+MANIFEST_PATH, STATUS_PATH = ARGS[:2]
+PART, PARTS = (int(ARGS[2]), int(ARGS[3])) if len(ARGS) > 3 else (0, 1)
+PAUSE_PATH = ARGS[4] if len(ARGS) > 4 else STATUS_PATH + ".pause"
 RNA_PATH = re.compile(r'^(?:(.*)\.)?([A-Za-z_]\w*)(?:\[(\d+)\])?$')
 
 with open(MANIFEST_PATH, encoding="utf-8") as f:
@@ -102,9 +106,18 @@ def run_job(job):
         os.makedirs(os.path.dirname(job["filepath"]), exist_ok=True)
         if job["mode"] == "ANIM":
             set_path(scene, "scene", "render.filepath", job["filepath"], undo)
+            if PARTS > 1 and getattr(scene.render, "is_movie_format", False):
+                if PART:
+                    return  # one movie file cannot be shared: the first Blender renders it alone
+            elif PARTS > 1:
+                start, step = scene.frame_start + PART * scene.frame_step, scene.frame_step
+                if start > scene.frame_end:
+                    return  # fewer frames than Blenders
+                set_path(scene, "scene", "frame_start", start, undo)
+                set_path(scene, "scene", "frame_step", step * PARTS, undo)
             bpy.ops.render.render(animation=True, scene=scene.name)
         else:
-            for frame in job["frames"]:
+            for frame in job["frames"][PART::PARTS]:
                 scene.frame_set(frame)
                 set_path(scene, "scene", "render.filepath", frame_filepath(job["filepath"], frame), undo)
                 bpy.ops.render.render(write_still=True, scene=scene.name)

@@ -171,6 +171,7 @@ class SBR_PT_output(OutputPanel, bpy.types.Panel):
         draw_templates(layout, s)
         layout.prop(s, "frame_padding")
         layout.prop(s, "use_snapshot")
+        layout.prop(s, "per_gpu")
         draw_tokens(layout)
 
 

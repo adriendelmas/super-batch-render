@@ -244,6 +244,11 @@ class SBR_Settings(bpy.types.PropertyGroup):
     use_snapshot: BoolProperty(name="Render Unsaved Changes", default=True,
                                description="Render a copy of the file as it is now. Off: render the saved .blend "
                                "directly (no copy, faster for big files)")
+    per_gpu: BoolProperty(name="One Blender per GPU", default=False,
+                          description="Start one background Blender per GPU enabled in the Cycles preferences (NVIDIA, "
+                          "CUDA or OptiX) and share the frames between them. Faster than every GPU on the same frame "
+                          "when loading the scene takes longer than sampling it. Each Blender loads the whole scene: "
+                          "check the RAM. A movie file is still rendered by a single Blender")
     overrides: PointerProperty(type=SBR_Overrides)
     custom: CollectionProperty(type=SBR_CustomOverride)
     visibility: CollectionProperty(type=SBR_Visibility)

@@ -46,6 +46,10 @@ Blender then offers each new version as an update.
   (each marker bound to a camera renders until the next marker).
 - Enable/disable jobs, duplicate, copy overrides to all jobs.
 - **Renders a snapshot** of the file as it is now (unsaved changes included), so you keep working.
+- **One Blender per GPU** (Naming & Output panel): one background Blender per NVIDIA GPU enabled in the Cycles
+  preferences, each on its own card, frames shared between them (worker k of n renders every n-th frame).
+  Much faster than all GPUs on one frame when loading the scene costs more than sampling it. Every Blender
+  loads the whole scene, so watch the RAM; untick GPUs in the Cycles preferences to start fewer.
 - One failing job no longer stops the queue; per-job error and a `worker.log` you can open.
 - Checks before rendering: missing camera/world/view layer, broken template, two jobs writing the same
   files, video format with stills, unresolvable custom paths.
@@ -60,3 +64,5 @@ renumbering of stepped frames.
 2. A copy of the current file is saved next to the .blend (`.<name>.blend.sbr_snapshot.blend`, deleted at the end).
 3. `blender -b snapshot --python worker.py -- manifest status` applies each job's operations, renders,
    restores the values, and writes `status.json`, which the panel reads every second.
+   With One Blender per GPU, step 3 runs once per GPU (`CUDA_VISIBLE_DEVICES`), each with its own
+   `status_<k>.json` and `worker_<k>.log`; the panel shows the sum.
