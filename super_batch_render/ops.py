@@ -297,6 +297,8 @@ class SBR_OT_render(bpy.types.Operator):
             else:
                 # the worker only sees its own GPU, which keeps its "enabled" state from the preferences
                 env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu))
+                # share the CPU too: n Blenders each using every thread to prepare the scene stall each other
+                cmd[1:1] = ["-t", str(max(1, (os.cpu_count() or 1) // len(gpus)))]
                 statuses.append(os.path.join(run_dir, f"status_{part}.json"))
                 logs.append(open(os.path.join(run_dir, f"worker_{part}.log"), "w", encoding="utf-8"))
                 cmd += [statuses[-1], str(part), str(len(gpus)), status_path + ".pause"]
